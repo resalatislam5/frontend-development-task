@@ -67,3 +67,41 @@ export const mockManagers = [
   { id: "FIN002", name: "Jake Turner", department: "Finance" },
   { id: "FIN003", name: "Nadia Rahman", department: "Finance" },
 ];
+
+export const employeeFromData = {
+  person: {
+    name: "",
+    email: "",
+    number: "",
+    birth: "",
+    img: undefined,
+  },
+  job_details: {
+    department: "",
+    position_title: "",
+    start_date: "",
+    job_type: "",
+    salary_expectation: "",
+    manager: "",
+  },
+
+  skills: {
+    primary_skills: [
+      {
+        name: "",
+        experience: "",
+      },
+    ],
+    work_hours: "",
+    work_preference: "",
+    extra_note: "",
+  },
+  contact: {
+    name: "",
+    relationship: "",
+    number: "",
+    age: "",
+    guardian_name: "",
+    guardian_number: "",
+  },
+};

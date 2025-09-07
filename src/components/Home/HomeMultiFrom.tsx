@@ -54,6 +54,12 @@ const FromLayout = ({
   );
 };
 
+export type DepartmentType =
+  | "Engineering"
+  | "Marketing"
+  | "Sales"
+  | "HR"
+  | "Finance";
 const employeeFromDataSchema = z.object({
   person: z.object({
     name: z
@@ -69,30 +75,63 @@ const employeeFromDataSchema = z.object({
         /^\+\d{1,3}-\d{3}-\d{3}-\d{4}$/,
         "Phone number must be in format +1-123-456-7890"
       ),
-    birth: z.string().nonempty("Date of Birth is required"),
+    birth: z
+      .string()
+      .nonempty("Date of Birth is required")
+      .refine((date) => {
+        const dob = new Date(date);
+        const today = new Date();
+        const age = today.getFullYear() - dob.getFullYear();
+        const m = today.getMonth() - dob.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+          return age - 1 >= 18;
+        }
+        return age >= 18;
+      }, "You must be at least 18 years old"),
     img: z.any().optional(), // allows undefined
   }),
   job_details: z.object({
-    department: z.string().nonempty("department is Required"),
+    department: z.enum(["Engineering", "Marketing", "Sales", "HR", "Finance"]),
     position_title: z.string().nonempty("position title is Required"),
-    start_date: z.string().nonempty("start date is Required"),
+    start_date: z
+      .string()
+      .nonempty("start date is Required")
+      .refine((dateStr) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // remove time part
+        const startDate = new Date(dateStr);
+        const maxFutureDate = new Date();
+        maxFutureDate.setDate(today.getDate() + 90);
+
+        return startDate >= today && startDate <= maxFutureDate;
+      }, "Start Date must be today or within 90 days from today"),
     job_type: z.string().nonempty("job type is Required"),
     salary_expectation: z.string().nonempty("salary expectation is Required"),
     manager: z.string().nonempty("manage is Required"),
   }),
 
-  // skills: z.object({
-  //   primary_skills: [
-  //     {
-  //       name: z.string(),
-  //       experience: z.string(),
-  //     },
-  //   ],
+  skills: z.object({
+    primary_skills: z
+      .array(
+        z.object({
+          name: z.string().nonempty("name is Required"),
+          experience: z.string().nonempty("experience is Required"),
+        })
+      )
+      .max(3, "You can select up to 3 skills only"), // ✅ max 3 enforced
 
-  //   work_hours: z.string(),
-  //   work_preference: z.string(),
-  //   extra_note: z.string(),
-  // }),
+    work_hours: z.array(z.number()).nonempty("work hours is Required"),
+    work_preference: z
+      .array(z.number())
+      .nonempty("work preference is Required"),
+    extra_note: z
+      .string()
+      .max(500, "max 500 characters")
+      .optional()
+      .refine((val) => !val || val.trim().length > 0, {
+        message: "Extra note cannot be empty if provided",
+      }),
+  }),
   // contact: z.object({
   //   name: z.string(),
   //   relationship: z.string(),
@@ -108,8 +147,6 @@ const HomeMultiFrom = () => {
   const [steps, setSteps] = useState(0);
   const [showManagerSearch, setShowManagerSearch] = useState(false);
   const [skills, setSkills] = useState<string[]>([]);
-  const [workTime, setWorkTime] = useState([9, 17]); // default: 9AM–5PM
-  const [workPreference, setWorkPreference] = useState([10]); // default: 0-10%
   const [imgPreview, setImgPreview] = useState<string | null>(null);
   // handle from using react-hooks-from and zod
 
@@ -128,7 +165,7 @@ const HomeMultiFrom = () => {
   const nextStep = async () => {
     let valid = false;
 
-    console.log(getValues(), errors, trigger());
+    console.log(getValues(), errors);
     if (steps === 0) {
       // Steps 1 = person fields
 
@@ -151,12 +188,12 @@ const HomeMultiFrom = () => {
       ]);
     } else if (steps === 2) {
       // Steps 3 = skills fields
-      // valid = await trigger([
-      //   "skills.primary_skills",
-      //   "skills.work_hours",
-      //   "skills.work_preference",
-      //   "skills.extra_note",
-      // ]);
+      valid = await trigger([
+        "skills.primary_skills",
+        "skills.work_hours",
+        "skills.work_preference",
+        "skills.extra_note",
+      ]);
     } else if (steps === 3) {
       // Steps 4 = contact fields
       // valid = await trigger([
@@ -285,7 +322,7 @@ const HomeMultiFrom = () => {
             <Label htmlFor="department">Department:</Label>
             <Select
               onValueChange={(val) =>
-                setValue("job_details.department", val, {
+                setValue("job_details.department", val as DepartmentType, {
                   shouldValidate: true, // triggers validation immediately
                   shouldDirty: true, // marks the field as dirty
                 })
@@ -295,11 +332,11 @@ const HomeMultiFrom = () => {
                 <SelectValue placeholder="Department" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="engineering">Engineering</SelectItem>
-                <SelectItem value="marketing">Marketing</SelectItem>
-                <SelectItem value="sales">Sales</SelectItem>
-                <SelectItem value="hr">HR</SelectItem>
-                <SelectItem value="finance">Finance</SelectItem>
+                <SelectItem value="Engineering">Engineering</SelectItem>
+                <SelectItem value="Marketing">Marketing</SelectItem>
+                <SelectItem value="Sales">Sales</SelectItem>
+                <SelectItem value="HR">HR</SelectItem>
+                <SelectItem value="Finance">Finance</SelectItem>
               </SelectContent>
             </Select>
             {errors.job_details?.department && (
@@ -347,7 +384,11 @@ const HomeMultiFrom = () => {
               defaultValue="full-time"
             >
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="full-time" id="full-time" />
+                <RadioGroupItem
+                  defaultChecked
+                  value="full-time"
+                  id="full-time"
+                />
                 <Label htmlFor="full-time">Full-time</Label>
               </div>
               <div className="flex items-center space-x-2">
@@ -380,49 +421,49 @@ const HomeMultiFrom = () => {
           </div>
           <div className="space-y-2 relative">
             <Label htmlFor="manager">Manager:</Label>
-            <Command className="rounded-lg border shadow-md ">
+            <Command className="rounded-lg border shadow-md">
               <CommandInput
-                onFocus={() => setShowManagerSearch(true)}
-                onBlur={() => setShowManagerSearch(false)}
                 placeholder="Type a command or search..."
-                value={watch("job_details.manager")}
-                onValueChange={(val) =>
+                value={watch("job_details.manager") || ""} // controlled by RHF
+                onValueChange={(val) => {
                   setValue("job_details.manager", val, {
                     shouldValidate: true,
                     shouldDirty: true,
-                  })
-                }
+                  });
+                }}
+                onFocus={() => setShowManagerSearch(true)}
               />
+
               {showManagerSearch && (
                 <CommandList>
                   <CommandEmpty>No results found.</CommandEmpty>
                   <CommandGroup
                     heading="Suggestions"
                     className="absolute bg-white w-full"
-                    onClick={() => setShowManagerSearch(false)}
-                    {...register("job_details.manager")}
                   >
-                    {mockManagers.map((item) => (
-                      <CommandItem
-                        value={item.name} // set the value prop
-                        onSelect={(val) =>
-                          setValue("job_details.manager", val, {
-                            shouldValidate: true,
-                            shouldDirty: true,
-                          })
-                        }
-                        key={item.id}
-                      >
-                        <span>{item.name}</span>
-                      </CommandItem>
-                    ))}
+                    {mockManagers
+                      .filter(
+                        (item) =>
+                          item.department ===
+                          getValues("job_details.department")
+                      )
+                      .map((item) => (
+                        <CommandItem
+                          key={item.id}
+                          value={item.name}
+                          onSelect={(val) => {
+                            setValue("job_details.manager", val, {
+                              shouldValidate: true,
+                              shouldDirty: true,
+                            });
+                            setShowManagerSearch(false); // close after select
+                          }}
+                        >
+                          {item.name}
+                        </CommandItem>
+                      ))}
                   </CommandGroup>
                 </CommandList>
-              )}
-              {errors.job_details?.manager && (
-                <p className="text-[10px] text-red-500">
-                  {errors.job_details.manager.message}
-                </p>
               )}
             </Command>
           </div>
@@ -444,68 +485,116 @@ const HomeMultiFrom = () => {
       )}
       {steps === 2 && (
         <FromLayout title="Step 3: Skills & Preferences">
-          {skillsByDepartment.Engineering.map((e, i) => (
-            <div key={i} className="flex items-start gap-3">
-              <Checkbox
-                onCheckedChange={(checked) => {
-                  if (checked) {
-                    if (skills.length > 2) {
-                      return alert("maximum 3 item added");
-                    }
-                    setSkills((prev) => [...prev, e]);
-                  } else {
-                    const removeSkill = skills.filter((item) => !(item === e));
-                    setSkills(removeSkill);
-                  }
-                }}
-                id={e}
-              />
-              <div className="grid gap-2 w-full">
-                <Label htmlFor={e}>{e}</Label>
-                {}
-                {skills[skills.findIndex((item) => item === e)] === e && (
-                  <Input placeholder="What Is Your Experience?" />
-                )}
-              </div>
-            </div>
-          ))}
+          {getValues("job_details.department") && (
+            <>
+              {skillsByDepartment[getValues("job_details.department")]?.map(
+                (e, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <Checkbox
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          if (skills.length > 2) {
+                            return alert("maximum 3 item added");
+                          }
+                          setSkills((prev) => [...prev, e]);
+                          setValue(
+                            `skills.primary_skills.${i}.name`,
+                            e as string,
+                            {
+                              shouldValidate: true, // triggers validation immediately
+                              shouldDirty: true, // marks the field as dirty
+                            }
+                          );
+                        } else {
+                          const removeSkill = skills.filter(
+                            (item) => !(item === e)
+                          );
+                          setSkills(removeSkill);
+                        }
+                      }}
+                      id={e}
+                      checked={skills.includes(e)}
+                    />
+                    <div className="grid gap-2 w-full">
+                      <Label htmlFor={e}>{e}</Label>
+                      {}
+                      {skills[skills.findIndex((item) => item === e)] === e && (
+                        <Input
+                          {...register(
+                            `skills.primary_skills.${i}.experience` as const
+                          )}
+                          placeholder="What Is Your Experience?"
+                        />
+                      )}
+                      {errors.skills?.primary_skills?.[i]?.experience && (
+                        <p className="text-[10px] text-red-600">
+                          {
+                            errors.skills?.primary_skills?.[i]?.experience
+                              ?.message
+                          }
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )
+              )}
+            </>
+          )}
           <div className="sm:col-span-2">
             <Label>Preferred Working Hours </Label>
             <Slider
-              value={workTime}
-              onValueChange={setWorkTime}
+              value={watch("skills.work_hours")}
+              onValueChange={(val) =>
+                setValue("skills.work_hours", val as number[], {
+                  shouldValidate: true,
+                  shouldDirty: true,
+                })
+              }
               min={0}
               max={24}
               step={1}
               className="mt-6 mb-3"
             />
             <div className="flex justify-between text-sm font-medium text-gray-700">
-              <span>Start: {workTime[0]}:00</span>
-              <span>End: {workTime[1]}:00</span>
+              <span>Start: {watch("skills.work_hours")[0]}00</span>
+              <span>End: {watch("skills.work_hours")[1]}:00</span>
             </div>
           </div>
           <div className="sm:col-span-2">
             <Label>Remote Work Preference </Label>
             <Slider
-              value={workPreference}
-              onValueChange={setWorkPreference}
+              value={watch("skills.work_hours")}
+              onValueChange={(val) =>
+                setValue("skills.work_preference", val as number[], {
+                  shouldValidate: true,
+                  shouldDirty: true,
+                })
+              }
               max={100}
               step={1}
               className=" mt-6 mb-3"
             />
             <div className="flex justify-between text-sm font-medium text-gray-700">
               <span>Start: {0}%</span>
-              <span>End: {workPreference[1]}%</span>
+              <span>End: {watch("skills.work_hours")[1]}%</span>
             </div>
           </div>
           <div className="sm:col-span-2 space-y-2">
-            <Label htmlFor="Extra_Notes">Extra Notes</Label>
+            <Label htmlFor="Extra_Notes">Extra Notes (optional)</Label>
             <Textarea id="Extra_Notes" rows={5} className="" />
           </div>
-          <Button variant={"secondary"} onClick={() => setSteps(2)}>
+          <Button
+            type="button"
+            variant={"secondary"}
+            onClick={() => setSteps(1)}
+          >
             Preview
           </Button>
-          <Button variant={"secondary"} onClick={() => setSteps(3)}>
+          <Button
+            type="button"
+            variant={"secondary"}
+            onClick={() => nextStep()}
+          >
             Next
           </Button>
         </FromLayout>
@@ -546,10 +635,18 @@ const HomeMultiFrom = () => {
             <Input id="number" placeholder="Enter Your Phone Number" />
             <Input id="number" placeholder="Enter Your Phone Number" />
           </div>
-          <Button variant={"secondary"} onClick={() => setSteps(3)}>
+          <Button
+            type="button"
+            variant={"secondary"}
+            onClick={() => setSteps(2)}
+          >
             Preview
           </Button>
-          <Button variant={"secondary"} onClick={() => setSteps(4)}>
+          <Button
+            type="button"
+            variant={"secondary"}
+            onClick={() => setSteps(4)}
+          >
             Next
           </Button>
         </FromLayout>
@@ -565,40 +662,3 @@ const HomeMultiFrom = () => {
 };
 
 export default HomeMultiFrom;
-
-// const employeeFromDataTypes = z.object( {
-//   person: z.object({
-//     name: z.string(),
-//     email: z.string(),
-//     number: z.string(),
-//     birth: z.string(),
-//     img: z.string(),
-//   }),
-//   job_details: {
-//     department: z.string(),
-//     position_title: z.string(),
-//     start_date: z.string(),
-//     job_type: z.string(),
-//     salary_expectation: z.string(),
-//     manager: z.string(),
-//   }
-
-//   skills: {
-//     primary_skills: {
-//       name: z.string(),
-//       experience: z.string(),
-//     }[];
-
-//     work_hours: z.string(),
-//     work_preference: z.string(),
-//     extra_note: z.string(),
-//   };
-//   contact: {
-//     name: z.string(),
-//     relationship: z.string(),
-//     number: z.string(),
-//     age: z.string(),
-//     guardian_name?: z.string(),
-//     guardian_number?: z.string(),
-//   };
-// })

@@ -1,3 +1,5 @@
+import { DepartmentType } from "@/components/Home/HomeMultiFrom";
+
 export const skillsByDepartment = {
   Engineering: [
     "JavaScript",
@@ -77,10 +79,10 @@ export const employeeFromData = {
     img: undefined,
   },
   job_details: {
-    department: "",
+    department: "" as DepartmentType,
     position_title: "",
     start_date: "",
-    job_type: "",
+    job_type: "full-time",
     salary_expectation: "",
     manager: "",
   },
@@ -92,8 +94,8 @@ export const employeeFromData = {
         experience: "",
       },
     ],
-    work_hours: "",
-    work_preference: "",
+    work_hours: [9, 5],
+    work_preference: [0, 50],
     extra_note: "",
   },
   contact: {

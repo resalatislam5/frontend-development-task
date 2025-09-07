@@ -2,7 +2,7 @@
 import { employeeFromData, mockManagers, skillsByDepartment } from "@/constant";
 import { cn } from "@/lib/utils";
 import { ReactNode, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { MdOutlineFileUpload } from "react-icons/md";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
@@ -132,14 +132,20 @@ const employeeFromDataSchema = z.object({
         message: "Extra note cannot be empty if provided",
       }),
   }),
-  // contact: z.object({
-  //   name: z.string(),
-  //   relationship: z.string(),
-  //   number: z.string(),
-  //   age: z.string(),
-  //   guardian_name: z.string(),
-  //   guardian_number: z.string(),
-  // }),
+  contact: z.object({
+    name: z.string().nonempty("Name is Required"),
+    relationship: z.string().nonempty("Relation ship is Required"),
+    number: z
+      .string()
+      .nonempty("Phone number is required")
+      .regex(
+        /^\+\d{1,3}-\d{3}-\d{3}-\d{4}$/,
+        "Phone number must be in format +1-123-456-7890"
+      ),
+    age: z.boolean(),
+    guardian_name: z.string().optional(),
+    guardian_number: z.string().optional(),
+  }),
 });
 
 type employeeFromDataTypes = z.infer<typeof employeeFromDataSchema>;
@@ -157,6 +163,7 @@ const HomeMultiFrom = () => {
     getValues,
     setValue,
     watch,
+    control,
   } = useForm<employeeFromDataTypes>({
     resolver: zodResolver(employeeFromDataSchema),
     mode: "onChange",
@@ -196,14 +203,14 @@ const HomeMultiFrom = () => {
       ]);
     } else if (steps === 3) {
       // Steps 4 = contact fields
-      // valid = await trigger([
-      //   "contact.name",
-      //   "contact.relationship",
-      //   "contact.number",
-      //   "contact.age",
-      //   "contact.guardian_name",
-      //   "contact.guardian_number",
-      // ]);
+      valid = await trigger([
+        "contact.name",
+        "contact.relationship",
+        "contact.number",
+        "contact.age",
+        "contact.guardian_name",
+        "contact.guardian_number",
+      ]);
     }
 
     if (valid) setSteps((s) => s + 1);
@@ -603,38 +610,103 @@ const HomeMultiFrom = () => {
         <FromLayout title="Step 4: Emergency Contact">
           <div className="space-y-2">
             <Label htmlFor="contact-name">Contact Name:</Label>
-            <Input id="contact-name" placeholder="Enter Your Phone Number" />
+            <Input
+              {...register("contact.name")}
+              id="contact-name"
+              placeholder="Enter Your Phone Number"
+            />
+            {errors.contact?.name && (
+              <p className="text-[10px] text-red-500">
+                {errors.contact.name.message}
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="number">Number:</Label>
-            <Input id="number" placeholder="Enter Your Phone Number" />
+            <Input
+              id="number"
+              {...register("contact.number")}
+              placeholder="Enter Your Phone Number"
+            />
+            {errors.contact?.number && (
+              <p className="text-[10px] text-red-500">
+                {errors.contact.number.message}
+              </p>
+            )}
           </div>
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="">Relationship:</Label>
-            <Select>
+            <Select
+              onValueChange={(val) =>
+                setValue("contact.relationship", val as DepartmentType, {
+                  shouldValidate: true, // triggers validation immediately
+                  shouldDirty: true, // marks the field as dirty
+                })
+              }
+            >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Department" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="engineering">Engineering</SelectItem>
-                <SelectItem value="marketing">Marketing</SelectItem>
-                <SelectItem value="sales">Sales</SelectItem>
-                <SelectItem value="hr">HR</SelectItem>
-                <SelectItem value="finance">Finance</SelectItem>
+                <SelectItem value="Father">Father</SelectItem>
+                <SelectItem value="Mother">Mother</SelectItem>
+                <SelectItem value="Sister">Sister</SelectItem>
+                <SelectItem value="Brother">Brother</SelectItem>
+                <SelectItem value="Uncle">Uncle</SelectItem>
               </SelectContent>
             </Select>
+            {errors.contact?.relationship && (
+              <p className="text-[10px] text-red-500">
+                {errors.contact.relationship.message}
+              </p>
+            )}
           </div>
 
-          <div className="">
-            <div className="flex gap-2 items-center">
-              <Checkbox />
-              Are You Under 21
+          <Controller
+            name="contact.age"
+            control={control}
+            render={({ field }) => (
+              <div className="flex gap-2 sm:col-span-2 items-center ">
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                  id="ageT"
+                  className="cursor-pointer"
+                />
+                <Label className="cursor-pointer" htmlFor="ageT">
+                  Are You Under 21
+                </Label>
+              </div>
+            )}
+          />
+          {getValues("contact.age") && (
+            <div className="sm:col-span-2 flex gap-5">
+              <div className="w-full">
+                <Input
+                  id="number"
+                  {...register("contact.guardian_name")}
+                  placeholder="Enter Your Phone Number"
+                />
+                {errors.contact?.guardian_name && (
+                  <p className="text-[10px] text-red-500">
+                    {errors.contact.guardian_name.message}
+                  </p>
+                )}
+              </div>
+              <div className="w-full">
+                <Input
+                  id="number"
+                  {...register("contact.guardian_number")}
+                  placeholder="Enter Your Phone Number"
+                />
+                {errors.contact?.guardian_number && (
+                  <p className="text-[10px] text-red-500">
+                    {errors.contact.guardian_number.message}
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-          <div className="sm:col-span-2 flex gap-5">
-            <Input id="number" placeholder="Enter Your Phone Number" />
-            <Input id="number" placeholder="Enter Your Phone Number" />
-          </div>
+          )}
           <Button
             type="button"
             variant={"secondary"}
@@ -645,7 +717,7 @@ const HomeMultiFrom = () => {
           <Button
             type="button"
             variant={"secondary"}
-            onClick={() => setSteps(4)}
+            onClick={() => nextStep()}
           >
             Next
           </Button>

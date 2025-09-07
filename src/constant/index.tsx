@@ -102,7 +102,7 @@ export const employeeFromData = {
     name: "",
     relationship: "",
     number: "",
-    age: "",
+    age: false,
     guardian_name: "",
     guardian_number: "",
   },

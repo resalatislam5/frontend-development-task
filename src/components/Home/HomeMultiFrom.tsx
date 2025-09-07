@@ -111,14 +111,12 @@ const employeeFromDataSchema = z.object({
   }),
 
   skills: z.object({
-    primary_skills: z
-      .array(
-        z.object({
-          name: z.string().nonempty("name is Required"),
-          experience: z.string().nonempty("experience is Required"),
-        })
-      )
-      .max(3, "You can select up to 3 skills only"), // ✅ max 3 enforced
+    primary_skills: z.array(
+      z.object({
+        name: z.string().nonempty("name is Required"),
+        experience: z.string().nonempty("experience is Required"),
+      })
+    ),
 
     work_hours: z.array(z.number()).nonempty("work hours is Required"),
     work_preference: z
@@ -164,6 +162,7 @@ const HomeMultiFrom = () => {
     setValue,
     watch,
     control,
+    handleSubmit,
   } = useForm<employeeFromDataTypes>({
     resolver: zodResolver(employeeFromDataSchema),
     mode: "onChange",
@@ -215,10 +214,13 @@ const HomeMultiFrom = () => {
 
     if (valid) setSteps((s) => s + 1);
   };
-  console.log(imgPreview);
+  console.log(getValues());
 
+  const onSubmit = () => {
+    alert("Submit successfully");
+  };
   return (
-    <form>
+    <form onSubmit={handleSubmit(onSubmit)}>
       {steps == 0 && (
         <FromLayout title="Step 1: Personal Info">
           <div className="space-y-2">
@@ -725,8 +727,122 @@ const HomeMultiFrom = () => {
       )}
       {steps === 4 && (
         <FromLayout title="Step 5: Review & Submit">
-          Show all the information the user entered in one place so they can
-          review everything before submitting. (read only)
+          <h1 className="sm:col-span-2 font-semibold text-2xl">
+            Personal Info
+          </h1>
+
+          <FinalTextDesign title="Name:">
+            {" "}
+            {getValues("person.name")}
+          </FinalTextDesign>
+          <FinalTextDesign title="Email:">
+            {" "}
+            {getValues("person.email")}
+          </FinalTextDesign>
+          <FinalTextDesign title="Date of Birth:">
+            {" "}
+            {getValues("person.birth")}
+          </FinalTextDesign>
+          <FinalTextDesign title="Number:">
+            {" "}
+            {getValues("person.number")}
+          </FinalTextDesign>
+
+          <h1 className="sm:col-span-2 font-semibold text-2xl">Job Details</h1>
+
+          <FinalTextDesign title="Department:">
+            {" "}
+            {getValues("job_details.department")}
+          </FinalTextDesign>
+          <FinalTextDesign title="Position Title:">
+            {" "}
+            {getValues("job_details.position_title")}
+          </FinalTextDesign>
+          <FinalTextDesign title="Start Date:">
+            {" "}
+            {getValues("job_details.start_date")}
+          </FinalTextDesign>
+          <FinalTextDesign title="Job Type:">
+            {" "}
+            {getValues("job_details.job_type")}
+          </FinalTextDesign>
+          <FinalTextDesign title="Salary Expectation:">
+            {" "}
+            {getValues("job_details.salary_expectation")}
+          </FinalTextDesign>
+          <FinalTextDesign title="Manager :">
+            {" "}
+            {getValues("job_details.manager")}
+          </FinalTextDesign>
+
+          <h1 className="sm:col-span-2 font-semibold text-2xl">
+            Skills & Preferences
+          </h1>
+
+          <FinalTextDesign title="Primary Skills:">
+            <div className="flex flex-col gap-2">
+              {getValues("skills.primary_skills").map((item, i) => (
+                <div className="flex flex-col gap-1" key={i}>
+                  <p>Name: {item.name}</p>
+                  <p>Experience: {item.experience}</p>
+                </div>
+              ))}
+            </div>
+          </FinalTextDesign>
+          <FinalTextDesign title="Preferred Working Hours:">
+            {" "}
+            {getValues("skills.work_hours")[0]} to{" "}
+            {getValues("skills.work_hours")[1]}
+          </FinalTextDesign>
+          <FinalTextDesign title="Remote Work Preference:">
+            {" "}
+            {getValues("skills.work_preference")[1]}
+          </FinalTextDesign>
+          <FinalTextDesign title="Extra Notes:">
+            {" "}
+            {getValues("skills.extra_note")}
+          </FinalTextDesign>
+
+          <h1 className="sm:col-span-2 font-semibold text-2xl">
+            Emergency Contact
+          </h1>
+
+          <FinalTextDesign title="Name:">
+            {" "}
+            {getValues("contact.name")}
+          </FinalTextDesign>
+          <FinalTextDesign title="Relationship:">
+            {" "}
+            {getValues("contact.relationship")}
+          </FinalTextDesign>
+          <FinalTextDesign title="Phone Number:">
+            {" "}
+            {getValues("contact.number")}
+          </FinalTextDesign>
+          {getValues("contact.age") && (
+            <>
+              <FinalTextDesign title="Guardian Name:">
+                {" "}
+                {getValues("contact.guardian_name")}
+              </FinalTextDesign>
+              <FinalTextDesign title="Guardian Number:">
+                {" "}
+                {getValues("contact.guardian_number")}
+              </FinalTextDesign>
+            </>
+          )}
+          <div className="sm:col-span-2 flex gap-5 w-full">
+            <Button
+              type="button"
+              variant={"secondary"}
+              onClick={() => setSteps(3)}
+            >
+              Preview
+            </Button>
+            <Button type="submit" variant={"secondary"}>
+              Submit
+            </Button>
+          </div>
         </FromLayout>
       )}
     </form>
@@ -734,3 +850,17 @@ const HomeMultiFrom = () => {
 };
 
 export default HomeMultiFrom;
+
+const FinalTextDesign = ({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) => {
+  return (
+    <p>
+      <span className="font-medium">{title} </span> {children}
+    </p>
+  );
+};
